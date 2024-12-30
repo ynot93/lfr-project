@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Robot Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Robot Dashboard</h1>
+    <img src="/video_feed" alt="Video Feed" style="width:640px; height:480px;">
+    <p>Centroid X (cx): <span id="cx">None</span></p>
+    <p>FPS: <span id="fps">0</span></p>
+    <p>Error: <span id="error">None</span></p>
+    <p>Left Speed: <span id="left_speed">0</span></p>
+    <p>Right Speed: <span id="right_speed">0</span></p>
+    <canvas id="errorChart" width="400" height="200"></canvas>
+
+    <script>
+        async function fetchRobotData() {
+            const response = await fetch('/robot_data');
+            const data = await response.json();
+            document.getElementById('cx').innerText = data.cx || "None";
+            document.getElementById('fps').innerText = data.fps;
+            document.getElementById('error').innerText = data.error || "None";
+            document.getElementById('left_speed').innerText = data.left_speed;
+            document.getElementById('right_speed').innerText = data.right_speed;
+            updateErrorChart(data.error || 0);
+        }
+
+        setInterval(fetchRobotData, 500);
+
+        const ctx = document.getElementById('errorChart').getContext('2d');
+        const errorChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels: [], datasets: [{ label: 'Error', data: [], borderColor: 'blue', borderWidth: 1 }] },
+            options: { scales: { x: { display: true }, y: { display: true } } }
+        });
+
+        function updateErrorChart(error) {
+            errorChart.data.labels.push('');
+            errorChart.data.datasets[0].data.push(error);
+            if (errorChart.data.labels.length > 50) {
+                errorChart.data.labels.shift();
+                errorChart.data.datasets[0].data.shift();
+            }
+            errorChart.update();
+        }
+    </script>
+</body>
+</html>
+
