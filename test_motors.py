@@ -37,6 +37,10 @@ try:
     print("Left motor reverse")
     time.sleep(2)
 
+    # Stop left motor
+    GPIO.output(MOTOR_PINS["A"]["IN1"], GPIO.LOW)
+    GPIO.output(MOTOR_PINS["A"]["IN2"], GPIO.LOW)
+
     # Test right motor forward
     GPIO.output(MOTOR_PINS["B"]["IN1"], GPIO.HIGH)
     GPIO.output(MOTOR_PINS["B"]["IN2"], GPIO.LOW)
@@ -48,6 +52,10 @@ try:
     GPIO.output(MOTOR_PINS["B"]["IN2"], GPIO.HIGH)
     print("Right motor reverse")
     time.sleep(2)
+
+    # Stop right motor
+    GPIO.output(MOTOR_PINS["B"]["IN1"], GPIO.LOW)
+    GPIO.output(MOTOR_PINS["B"]["IN2"], GPIO.LOW)
 
 except Exception as e:
     print(f"An error occurred: {e}")
