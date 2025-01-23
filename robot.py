@@ -4,6 +4,7 @@ import RPi.GPIO as GPIO
 import time
 from flask import Flask, Response, jsonify, render_template
 import threading
+import eventlet
 
 # Pin configuration
 MOTOR_PINS = {
@@ -63,10 +64,9 @@ def video_feed():
                 if frame is not None:
                     ret, jpeg = cv2.imencode('.jpg', frame)
                     if ret:
-                        yield (b'--frame\r\n'
-                               b'Content-Type: image/jpeg\r\n\r\n' +
-                               jpeg.tobytes() + b'\r\n')
-    return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+                        yield f"data:image/jpeg;base64,{base64.b64encode(jpeg.tobytes()).decode('utf-8')}\n\n"
+            eventlet.sleep(0.1)  # Introduce a small delay for smoother streaming
+    return Response(generate(), mimetype='text/event-stream')
 
 @app.route('/processed_feed')
 def processed_feed():
@@ -77,10 +77,9 @@ def processed_feed():
                 if processed_frame is not None:
                     ret, jpeg = cv2.imencode('.jpg', processed_frame)
                     if ret:
-                        yield (b'--frame\r\n'
-                               b'Content-Type: image/jpeg\r\n\r\n' +
-                               jpeg.tobytes() + b'\r\n')
-    return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
+                        yield f"data:image/jpeg;base64,{base64.b64encode(jpeg.tobytes()).decode('utf-8')}\n\n"
+            eventlet.sleep(0.1)  # Introduce a small delay for smoother streaming
+    return Response(generate(), mimetype='text/event-stream')
 
 def set_motor_speed(motor, speed):
     if speed > 0:
@@ -187,4 +186,4 @@ def main():
         cleanup()
 
 if __name__ == "__main__":
-    main()
+    eventlet.wsgi.server(eventlet.listen(('', 5000)), app) 

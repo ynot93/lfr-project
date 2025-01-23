@@ -13,32 +13,27 @@
         <h1 class="text-3xl font-bold text-center mb-6">Robot Dashboard</h1>
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- Video Feed -->
             <div class="bg-white shadow rounded-lg p-6">
                 <h2 class="text-lg font-bold mb-2">Live Feed</h2>
-                <img src="/video_feed" alt="Live Feed" class="rounded">
+                <video id="video-feed" width="100%" height="240" autoplay></video>
             </div>
 
-            <!-- Motor Speeds -->
             <div class="bg-white shadow rounded-lg p-6">
                 <h2 class="text-lg font-bold mb-2">Motor Speeds</h2>
                 <p>Left: <span id="left-speed">0</span> %</p>
                 <p>Right: <span id="right-speed">0</span> %</p>
             </div>
 
-            <!-- Error -->
             <div class="bg-white shadow rounded-lg p-6">
                 <h2 class="text-lg font-bold mb-2">Error</h2>
                 <p><span id="error">0</span></p>
             </div>
 
-            <!-- CX -->
             <div class="bg-white shadow rounded-lg p-6">
                 <h2 class="text-lg font-bold mb-2">CX Position</h2>
                 <p><span id="cx">0</span></p>
             </div>
 
-            <!-- Battery Voltage -->
             <div class="bg-white shadow rounded-lg p-6">
                 <h2 class="text-lg font-bold mb-2">Battery Voltage</h2>
                 <p><span id="battery">12.0</span> V</p>
@@ -47,6 +42,14 @@
     </div>
 
     <script>
+        const videoFrame = document.getElementById('video-feed');
+        const eventSource = new EventSource('/video_feed');
+
+        eventSource.onmessage = function(event) {
+            const imageData = 'data:image/jpeg;base64,' + event.data;
+            videoFrame.src = imageData;
+        };
+
         function fetchMetrics() {
             axios.get('/metrics')
                 .then(response => {
