@@ -1,50 +1,67 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Robot Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
-<body>
-    <h1>Robot Dashboard</h1>
-    <img src="/video_feed" alt="Video Feed" style="width:640px; height:480px;">
-    <p>Centroid X (cx): <span id="cx">None</span></p>
-    <p>FPS: <span id="fps">0</span></p>
-    <p>Error: <span id="error">None</span></p>
-    <p>Left Speed: <span id="left_speed">0</span></p>
-    <p>Right Speed: <span id="right_speed">0</span></p>
-    <canvas id="errorChart" width="400" height="200"></canvas>
+<body class="bg-gray-100">
+
+    <div class="container mx-auto py-10">
+        <h1 class="text-3xl font-bold text-center mb-6">Robot Dashboard</h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Video Feed -->
+            <div class="bg-white shadow rounded-lg p-6">
+                <h2 class="text-lg font-bold mb-2">Live Feed</h2>
+                <img src="/video_feed" alt="Live Feed" class="rounded">
+            </div>
+
+            <!-- Motor Speeds -->
+            <div class="bg-white shadow rounded-lg p-6">
+                <h2 class="text-lg font-bold mb-2">Motor Speeds</h2>
+                <p>Left: <span id="left-speed">0</span> %</p>
+                <p>Right: <span id="right-speed">0</span> %</p>
+            </div>
+
+            <!-- Error -->
+            <div class="bg-white shadow rounded-lg p-6">
+                <h2 class="text-lg font-bold mb-2">Error</h2>
+                <p><span id="error">0</span></p>
+            </div>
+
+            <!-- CX -->
+            <div class="bg-white shadow rounded-lg p-6">
+                <h2 class="text-lg font-bold mb-2">CX Position</h2>
+                <p><span id="cx">0</span></p>
+            </div>
+
+            <!-- Battery Voltage -->
+            <div class="bg-white shadow rounded-lg p-6">
+                <h2 class="text-lg font-bold mb-2">Battery Voltage</h2>
+                <p><span id="battery">12.0</span> V</p>
+            </div>
+        </div>
+    </div>
 
     <script>
-        async function fetchRobotData() {
-            const response = await fetch('/robot_data');
-            const data = await response.json();
-            document.getElementById('cx').innerText = data.cx || "None";
-            document.getElementById('fps').innerText = data.fps;
-            document.getElementById('error').innerText = data.error || "None";
-            document.getElementById('left_speed').innerText = data.left_speed;
-            document.getElementById('right_speed').innerText = data.right_speed;
-            updateErrorChart(data.error || 0);
+        function fetchMetrics() {
+            axios.get('/metrics')
+                .then(response => {
+                    const data = response.data;
+                    document.getElementById('left-speed').innerText = data.motor_speeds.left;
+                    document.getElementById('right-speed').innerText = data.motor_speeds.right;
+                    document.getElementById('error').innerText = data.error;
+                    document.getElementById('cx').innerText = data.cx;
+                    document.getElementById('battery').innerText = data.battery_voltage.toFixed(1);
+                })
+                .catch(error => console.error('Error fetching metrics:', error));
         }
 
-        setInterval(fetchRobotData, 500);
-
-        const ctx = document.getElementById('errorChart').getContext('2d');
-        const errorChart = new Chart(ctx, {
-            type: 'line',
-            data: { labels: [], datasets: [{ label: 'Error', data: [], borderColor: 'blue', borderWidth: 1 }] },
-            options: { scales: { x: { display: true }, y: { display: true } } }
-        });
-
-        function updateErrorChart(error) {
-            errorChart.data.labels.push('');
-            errorChart.data.datasets[0].data.push(error);
-            if (errorChart.data.labels.length > 50) {
-                errorChart.data.labels.shift();
-                errorChart.data.datasets[0].data.shift();
-            }
-            errorChart.update();
-        }
+        setInterval(fetchMetrics, 1000); // Refresh every second
     </script>
+
 </body>
 </html>
-
