@@ -4,7 +4,7 @@ import RPi.GPIO as GPIO
 import time
 from flask import Flask, Response, jsonify, render_template
 import threading
-import eventlet
+# import eventlet
 
 # Pin configuration
 MOTOR_PINS = {
@@ -64,9 +64,10 @@ def video_feed():
                 if frame is not None:
                     ret, jpeg = cv2.imencode('.jpg', frame)
                     if ret:
-                        yield f"data:image/jpeg;base64,{base64.b64encode(jpeg.tobytes()).decode('utf-8')}\n\n"
-            eventlet.sleep(0.1)  # Introduce a small delay for smoother streaming
-    return Response(generate(), mimetype='text/event-stream')
+                        yield (b'--frame\r\n'
+                               b'Content-Type: image/jpeg\r\n\r\n' +
+                               jpeg.tobytes() + b'\r\n')
+    return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/processed_feed')
 def processed_feed():
@@ -77,9 +78,10 @@ def processed_feed():
                 if processed_frame is not None:
                     ret, jpeg = cv2.imencode('.jpg', processed_frame)
                     if ret:
-                        yield f"data:image/jpeg;base64,{base64.b64encode(jpeg.tobytes()).decode('utf-8')}\n\n"
-            eventlet.sleep(0.1)  # Introduce a small delay for smoother streaming
-    return Response(generate(), mimetype='text/event-stream')
+                        yield (b'--frame\r\n'
+                               b'Content-Type: image/jpeg\r\n\r\n' +
+                               jpeg.tobytes() + b'\r\n')
+    return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 def set_motor_speed(motor, speed):
     if speed > 0:
@@ -173,7 +175,7 @@ def main():
                     metrics["fps"] = frame_count / elapsed_time
 
                 # Dummy voltage drop simulation
-                metrics["battery_voltage"] = max(12.0 - (frame_count * 0.001), 6.0)  # Simulated voltage drop
+                metrics["battery_voltage"] = max(12.0 - (frame_count * 0.0001), 6.0)  # Simulated voltage drop
 
             # Update the shared frame for live feed
             with frame_lock:
@@ -186,4 +188,4 @@ def main():
         cleanup()
 
 if __name__ == "__main__":
-    eventlet.wsgi.server(eventlet.listen(('', 5000)), app) 
+    main()
