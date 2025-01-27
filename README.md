@@ -7,5 +7,5 @@ python3 -m venv env
 source env/bin/activate
 
 Install packages with pip
-pip install python-opencv RPi-GPIO numpy eventlet Flask
+pip install python-opencv RPi-GPIO numpy Flask
 
