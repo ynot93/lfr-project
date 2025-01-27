@@ -42,39 +42,51 @@ try:
             print("Failed to capture frame.")
             break
 
-        # Define the color range for masking
-        low_b = np.uint8([5, 5, 5])
-        high_b = np.uint8([0, 0, 0])
-        mask = cv2.inRange(frame, high_b, low_b)
+        # Convert frame to grayscale for faster processing
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        # Find contours
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        # Define a region of interest (ROI) in the lower part of the frame
+        height, width = gray.shape
+        roi = gray[height // 2 :, :]  # Only process the bottom half of the frame
+
+        # Apply thresholding to detect the white line (masking tape)
+        _, binary = cv2.threshold(roi, 200, 255, cv2.THRESH_BINARY)
+
+        # Dilate the binary image to thicken the line for better detection
+        kernel = np.ones((3, 3), np.uint8)  # Small kernel to keep the line sharp
+        dilated = cv2.dilate(binary, kernel, iterations=1)
+
+        # Find contours in the dilated image
+        contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
         if contours:
-            # Process the largest contour
+            # Process the largest contour (assume it's the line)
             c = max(contours, key=cv2.contourArea)
             M = cv2.moments(c)
 
             if M["m00"] != 0:
-                cx = int(M["m10"] / M["m00"])
-                cy = int(M["m01"] / M["m00"])
-                print(f"CX: {cx}, CY: {cy}")
+                cx = int(M["m10"] / M["m00"])  # Centroid x-coordinate
+                frame_center = width // 2      # Frame center x-coordinate
+                offset = cx - frame_center    # Offset from center
 
-                # Motor control logic
-                if cx >= 120:
+                print(f"CX: {cx}, Offset: {offset}")
+
+                # Motor control logic based on offset
+                if offset > 20:  # Line is to the right
                     print("Turn Left")
                     GPIO.output(MOTOR_PINS["A"]["IN1"], GPIO.HIGH)
                     GPIO.output(MOTOR_PINS["A"]["IN2"], GPIO.LOW)
                     GPIO.output(MOTOR_PINS["B"]["IN1"], GPIO.LOW)
                     GPIO.output(MOTOR_PINS["B"]["IN2"], GPIO.HIGH)
 
-                elif 40 < cx < 120:
+                elif -20 <= offset <= 20:  # Line is approximately centered
                     print("On Track")
                     GPIO.output(MOTOR_PINS["A"]["IN1"], GPIO.HIGH)
                     GPIO.output(MOTOR_PINS["A"]["IN2"], GPIO.LOW)
                     GPIO.output(MOTOR_PINS["B"]["IN1"], GPIO.HIGH)
                     GPIO.output(MOTOR_PINS["B"]["IN2"], GPIO.LOW)
 
-                else:
+                else:  # Line is to the left
                     print("Turn Right")
                     GPIO.output(MOTOR_PINS["A"]["IN1"], GPIO.LOW)
                     GPIO.output(MOTOR_PINS["A"]["IN2"], GPIO.HIGH)
