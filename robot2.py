@@ -35,6 +35,9 @@ cap = cv2.VideoCapture(0)
 cap.set(3, 160)  # Frame width
 cap.set(4, 120)  # Frame height
 
+Kp = 0.1  # Proportional constant for motor speed adjustment
+
+# Inside the main loop
 try:
     while True:
         ret, frame = cap.read()
@@ -42,76 +45,61 @@ try:
             print("Failed to capture frame.")
             break
 
-        # Convert frame to grayscale for faster processing
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        # Define a region of interest (ROI) in the lower part of the frame
+        # Use a refined ROI
         height, width = gray.shape
-        roi = gray[height // 2 :, :]  # Only process the bottom half of the frame
+        roi = gray[height // 2 :, :]  # Bottom half of the frame
 
-        # Apply thresholding to detect the white line (masking tape)
-        _, binary = cv2.threshold(roi, 200, 255, cv2.THRESH_BINARY)
+        # Apply adaptive thresholding
+        binary = cv2.adaptiveThreshold(
+            roi, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 11, 2
+        )
+        kernel = np.ones((5, 5), np.uint8)
+        dilated = cv2.dilate(binary, kernel, iterations=2)
 
-        # Dilate the binary image to thicken the line for better detection
-        kernel = np.ones((3, 3), np.uint8)  # Small kernel to keep the line sharp
-        dilated = cv2.dilate(binary, kernel, iterations=1)
-
-        # Find contours in the dilated image
+        # Find contours
         contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         if contours:
-            # Process the largest contour (assume it's the line)
-            c = max(contours, key=cv2.contourArea)
-            M = cv2.moments(c)
+            # Process the largest valid contour
+            c = max((contour for contour in contours if cv2.contourArea(contour) > 500), key=cv2.contourArea, default=None)
+            if c is not None:
+                M = cv2.moments(c)
+                if M["m00"] != 0:
+                    cx = int(M["m10"] / M["m00"])
+                    frame_center = width // 2
+                    offset = cx - frame_center
 
-            if M["m00"] != 0:
-                cx = int(M["m10"] / M["m00"])  # Centroid x-coordinate
-                frame_center = width // 2      # Frame center x-coordinate
-                offset = cx - frame_center    # Offset from center
+                    # Proportional control
+                    speed_adjust = int(Kp * abs(offset))
+                    if offset > 20:  # Line is to the right
+                        print("Turn Left")
+                        motor_pwm["A"].ChangeDutyCycle(50 + speed_adjust)
+                        motor_pwm["B"].ChangeDutyCycle(50 - speed_adjust)
 
-                print(f"CX: {cx}, Offset: {offset}")
+                    elif -20 <= offset <= 20:  # Line is centered
+                        print("On Track")
+                        motor_pwm["A"].ChangeDutyCycle(50)
+                        motor_pwm["B"].ChangeDutyCycle(50)
 
-                # Motor control logic based on offset
-                if offset > 20:  # Line is to the right
-                    print("Turn Left")
-                    GPIO.output(MOTOR_PINS["A"]["IN1"], GPIO.HIGH)
-                    GPIO.output(MOTOR_PINS["A"]["IN2"], GPIO.LOW)
-                    GPIO.output(MOTOR_PINS["B"]["IN1"], GPIO.LOW)
-                    GPIO.output(MOTOR_PINS["B"]["IN2"], GPIO.HIGH)
-
-                elif -20 <= offset <= 20:  # Line is approximately centered
-                    print("On Track")
-                    GPIO.output(MOTOR_PINS["A"]["IN1"], GPIO.HIGH)
-                    GPIO.output(MOTOR_PINS["A"]["IN2"], GPIO.LOW)
-                    GPIO.output(MOTOR_PINS["B"]["IN1"], GPIO.HIGH)
-                    GPIO.output(MOTOR_PINS["B"]["IN2"], GPIO.LOW)
-
-                else:  # Line is to the left
-                    print("Turn Right")
-                    GPIO.output(MOTOR_PINS["A"]["IN1"], GPIO.LOW)
-                    GPIO.output(MOTOR_PINS["A"]["IN2"], GPIO.HIGH)
-                    GPIO.output(MOTOR_PINS["B"]["IN1"], GPIO.HIGH)
-                    GPIO.output(MOTOR_PINS["B"]["IN2"], GPIO.LOW)
-            else:
-                print("No valid centroid found.")
+                    else:  # Line is to the left
+                        print("Turn Right")
+                        motor_pwm["A"].ChangeDutyCycle(50 - speed_adjust)
+                        motor_pwm["B"].ChangeDutyCycle(50 + speed_adjust)
+                else:
+                    print("No valid centroid found.")
         else:
             print("I don't see the line.")
-            # Stop motors if no line is detected
             for motor in MOTOR_PINS.values():
                 GPIO.output(motor["IN1"], GPIO.LOW)
                 GPIO.output(motor["IN2"], GPIO.LOW)
 
-        # Delay for stability
-        time.sleep(0.05)
+        time.sleep(0.03)
 
 except KeyboardInterrupt:
     print("Interrupted by user. Cleaning up...")
 finally:
-    # Cleanup GPIO and release resources
-    for motor in MOTOR_PINS.values():
-        GPIO.output(motor["IN1"], GPIO.LOW)
-        GPIO.output(motor["IN2"], GPIO.LOW)
-    motor_pwm["A"].stop()
-    motor_pwm["B"].stop()
     GPIO.cleanup()
     cap.release()
+

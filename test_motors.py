@@ -21,8 +21,8 @@ pwm_a = GPIO.PWM(MOTOR_PINS["A"]["EN"], 100)
 pwm_b = GPIO.PWM(MOTOR_PINS["B"]["EN"], 100)
 
 # Start PWM
-pwm_a.start(50)  # Set initial duty cycle (speed)
-pwm_b.start(50)
+pwm_a.start(70)  # Set initial duty cycle (speed)
+pwm_b.start(70)
 
 try:
     # Test left motor forward
