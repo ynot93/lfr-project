@@ -124,6 +124,7 @@ def read_wiegand():
 
     global latest_wiegand_id
     latest_wiegand_id = wiegand_id
+    print('This is the RFID tag ID: ',wiegand_id)
     return wiegand_id
 
 def set_motor_speed(motor, speed):
