@@ -12,6 +12,10 @@ MOTOR_PINS = {
     "B": {"EN": 19, "IN1": 25, "IN2": 12},
 }
 
+# GPIO RFID pin numbers
+D0_PIN = 17
+D1_PIN = 27
+
 # GPIO setup
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
@@ -20,6 +24,9 @@ for motor, pins in MOTOR_PINS.items():
     GPIO.setup(pins["EN"], GPIO.OUT)
     GPIO.setup(pins["IN1"], GPIO.OUT)
     GPIO.setup(pins["IN2"], GPIO.OUT)
+
+GPIO.setup(D0_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+GPIO.setup(D1_PIN, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
 # PWM setup
 motor_pwm = {
@@ -45,6 +52,7 @@ metrics = {
 }
 metrics_lock = threading.Lock()
 frame_lock = threading.Lock()
+latest_wiegand_id = None
 
 @app.route('/metrics')
 def get_metrics():
@@ -83,6 +91,41 @@ def processed_feed():
                                jpeg.tobytes() + b'\r\n')
     return Response(generate(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+@app.route('/wiegand_id')
+def get_wiegand_id():
+    global latest_wiegand_id
+    if latest_wiegand_id is not None:
+        return jsonify({"id": latest_wiegand_id})
+    else:
+        return jsonify({"id": None})
+
+def read_wiegand():
+    """Reads Wiegand data from the reader."""
+    data = []
+    while GPIO.input(D0_PIN) == 0 and GPIO.input(D1_PIN) == 0:
+        pass  # Wait for the start bit
+
+    while True:
+        d0 = GPIO.input(D0_PIN)
+        d1 = GPIO.input(D1_PIN)
+
+        if d0 == 1 and d1 == 0:
+            data.append(0)
+        elif d0 == 0 and d1 == 1:
+            data.append(1)
+        elif d0 == 0 and d1 == 0:
+            # End of data
+            break
+
+    # Convert binary data to decimal
+    wiegand_id = 0
+    for bit in data:
+        wiegand_id = (wiegand_id << 1) | bit
+
+    global latest_wiegand_id
+    latest_wiegand_id = wiegand_id
+    return wiegand_id
+
 def set_motor_speed(motor, speed):
     if speed > 0:
         GPIO.output(MOTOR_PINS[motor]["IN1"], GPIO.HIGH)
@@ -116,9 +159,9 @@ def process_frame(frame):
         cx = width // 2
 
     # Draw feedback on the processed frame
-    processed_frame = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
-    cv2.line(processed_frame, (cx, 0), (cx, height), (0, 255, 0), 2)
-    cv2.line(processed_frame, (width // 2, 0), (width // 2, height), (255, 0, 0), 2)
+    # processed_frame = cv2.cvtColor(binary, cv2.COLOR_GRAY2BGR)
+    # cv2.line(processed_frame, (cx, 0), (cx, height), (0, 255, 0), 2)
+    # cv2.line(processed_frame, (width // 2, 0), (width // 2, height), (255, 0, 0), 2)
     
     return cx, width
 
@@ -180,6 +223,9 @@ def main():
             # Update the shared frame for live feed
             with frame_lock:
                 frame = new_frame
+            
+            wiegand_id = read_wiegand()
+            print("Wiegand ID:", wiegand_id)
 
     except KeyboardInterrupt:
         print("Interrupted by user.")

@@ -38,6 +38,11 @@
                 <h2 class="text-lg font-bold mb-2">Battery Voltage</h2>
                 <p><span id="battery">12.0</span> V</p>
             </div>
+
+            <div class="bg-white shadow rounded-lg p-6">
+                <h2 class="text-lg font-bold mb-2">Wiegand ID</h2>
+                <p id="wiegand-id">None</p>
+            </div>
         </div>
     </div>
 
@@ -64,6 +69,25 @@
         }
 
         setInterval(fetchMetrics, 1000); // Refresh every second
+
+        async function fetchWiegandId() {
+    try {
+        const response = await axios.get('/wiegand_id');
+        const data = response.data;
+        document.getElementById('wiegand-id').innerText = data.id || 'None';
+
+        // Add logic for flashing the ID (e.g., background color change)
+        const element = document.getElementById('wiegand-id');
+        element.classList.add('flash'); // Add a CSS class for flashing effect
+        setTimeout(() => element.classList.remove('flash'), 1000); // Remove flash class after 1 second
+    } catch (error) {
+        console.error('Error fetching Wiegand ID:', error);
+    }
+    }
+
+    // Call fetchWiegandId initially and periodically (e.g., every 5 seconds)
+    fetchWiegandId();
+    setInterval(fetchWiegandId, 5000);
     </script>
 
 </body>
