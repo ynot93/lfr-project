@@ -90,32 +90,39 @@ try:
         contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         if len(contours) > 0:
-            largest_contour = max(contours, key=cv2.contourArea)  # Use the largest contour
-            M = cv2.moments(largest_contour)
+            min_contoured_area = 500
+            filtered_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > min_contour_area]
+            
+            if filtered_contours:
+                largest_contour = max(contours, key=cv2.contourArea)  # Use the largest contour
+                M = cv2.moments(largest_contour)
 
-            if M["m00"] != 0:
-                cx = int(M["m10"] / M["m00"])  # Centroid x-coordinate
-                frame_center = width // 2  # Frame center x-coordinate
-                offset = cx - frame_center  # Offset from center
+                if M["m00"] != 0:
+                    cx = int(M["m10"] / M["m00"])  # Centroid x-coordinate
+                    frame_center = width // 2  # Frame center x-coordinate
+                    offset = cx - frame_center  # Offset from center
 
-                print(f"CX: {cx}, Offset: {offset}")
+                    print(f"CX: {cx}, Offset: {offset}")
 
-                # Draw contours on the original frame
-                cv2.drawContours(frame, [largest_contour + [0, height // 2]], -1, (0, 255, 0), 2)
-                cv2.circle(frame, (cx, height // 2), 5, (0, 0, 255), -1)  # Draw centroid
+                    # Draw contours on the original frame
+                    cv2.drawContours(frame, [largest_contour + [0, height // 2]], -1, (0, 255, 0), 2)
+                    cv2.circle(frame, (cx, height // 2), 5, (0, 0, 255), -1)  # Draw centroid
 
-                # Motor control logic based on offset
-                if offset > 20:  # Line is to the right
-                    turn_left(speed=50)
-                elif -20 <= offset <= 20:  # Line is approximately centered
-                    move_forward(speed=50)
-                else:  # Line is to the left
-                    turn_right(speed=50)
+                    # Motor control logic based on offset
+                    if offset > 20:  # Line is to the right
+                        turn_left(speed=50)
+                    elif -20 <= offset <= 20:  # Line is approximately centered
+                        move_forward(speed=50)
+                    else:  # Line is to the left
+                        turn_right(speed=50)
+                else:
+                    print("No valid centroid found.")
+                    stop_motors()
             else:
-                print("No valid centroid found.")
+                print("No valid lane detected.")
                 stop_motors()
         else:
-            print("No line detected.")
+            print("No contours detected.")
             stop_motors()
 
         # Show video feed
