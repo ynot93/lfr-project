@@ -90,7 +90,7 @@ try:
         contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         if len(contours) > 0:
-            min_contoured_area = 500
+            min_contour_area = 500
             filtered_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > min_contour_area]
             
             if filtered_contours:
