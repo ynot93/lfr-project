@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Computer Vision Robot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 text-white p-4">
+
+    <!-- Navbar -->
+    <nav class="text-2xl font-bold text-center py-4 bg-gray-800 rounded-lg">
+        Computer Vision Robot
+    </nav>
+
+    <!-- Robot Image -->
+    <div class="flex justify-center items-center mt-6">
+        <img src="{{ url_for('static', filename='robot.jpeg') }}" alt="Robot" class="w-32 h-32 object-cover rounded-full border-4 border-gray-400 shadow-lg">
+    </div>
+
+    <!-- RFID Alert Box -->
+    <div id="rfid-alert" class="hidden bg-red-600 text-white text-center p-3 mt-4 rounded-lg shadow-lg">
+        Inventory Item Detected: <span id="rfid-value">None</span>
+    </div>
+
+    <!-- Data Cards -->
+    <div class="flex flex-wrap justify-center gap-6 mt-6">
+        <div class="bg-gray-800 p-6 rounded-2xl shadow-xl">
+            <h2 class="text-lg">CX Position</h2>
+            <p class="text-2xl font-bold" id="cx-value">0</p>
+        </div>
+        <div class="bg-gray-800 p-6 rounded-2xl shadow-xl">
+            <h2 class="text-lg">Offset</h2>
+            <p class="text-2xl font-bold" id="offset-value">0</p>
+        </div>
+        <div class="bg-gray-800 p-6 rounded-2xl shadow-xl">
+            <h2 class="text-lg">Direction</h2>
+            <p class="text-2xl font-bold" id="direction-value">Stopped</p>
+        </div>
+    </div>
+
+    <!-- Live Video Feed -->
+    <div class="flex justify-center mt-6">
+        <img src="{{ url_for('video_feed') }}" alt="Live Feed" class="rounded-lg shadow-xl border-2 border-gray-600">
+    </div>
+
+    <!-- JavaScript for Live Updates -->
+    <script>
+        function fetchData() {
+            fetch("/data")
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("cx-value").textContent = data.cx;
+                    document.getElementById("offset-value").textContent = data.offset;
+                    document.getElementById("direction-value").textContent = data.direction;
+                });
+        }
+
+        function fetchRFID() {
+            fetch("/rfid")
+                .then(response => response.json())
+                .then(data => {
+                    if (data.tag && data.tag !== "None") {
+                        document.getElementById("rfid-value").textContent = data.tag;
+                        document.getElementById("rfid-alert").classList.remove("hidden");
+                        setTimeout(() => {
+                            document.getElementById("rfid-alert").classList.add("hidden");
+                        }, 3000);
+                    }
+                });
+        }
+
+        setInterval(fetchData, 500);
+        setInterval(fetchRFID, 1000);
+    </script>
+
+</body>
+</html>
